@@ -1,0 +1,39 @@
+{
+    "name": "parrOdesa42",
+    "description": "A unique NFT representing the number 42, the answer to life, the universe, and everything. Created as part of the NFT 42 project on Ethereum Sepolia network.",
+    "image": "https://ipfs.io/ipfs/bafybeiglvaqgqwhojustotdalr6v4jxkli4agdtxr5nlsa2u45dikxfxqi",
+    "external_url": "https://github.com/tlukanie/nft_42",
+    "attributes": [
+      {
+        "trait_type": "Number",
+        "value": "42"
+      },
+      {
+        "trait_type": "Artist",
+        "value": "tlukanie"
+      },
+      {
+        "trait_type": "Collection",
+        "value": "parrOdesa42"
+      },
+      {
+        "trait_type": "Rarity",
+        "value": "Unique"
+      },
+      {
+        "trait_type": "Blockchain",
+        "value": "Ethereum"
+      },
+      {
+        "trait_type": "Network",
+        "value": "Sepolia"
+      }
+    ],
+    "properties": {
+      "artist": "tlukanie",
+      "created_at": "2025",
+      "blockchain": "Ethereum",
+      "network": "Sepolia",
+      "standard": "ERC-721"
+    }
+  }
