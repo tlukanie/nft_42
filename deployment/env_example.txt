@@ -1,0 +1,30 @@
+# Environment variables for ParrOdessa42 deployment
+# Copy this file to .env and fill in your values
+
+# Private key of the account that will deploy and own the contract
+# WARNING: Never commit your private key to version control!
+# Get this from MetaMask: Account Details > Export Private Key
+PRIVATE_KEY=your_private_key_here
+
+# Sepolia RPC URL (Free public endpoints - no API key needed!)
+# Free options:
+# - Public RPC: https://rpc.sepolia.org
+# - Alternative: https://sepolia.drpc.org
+# - Alternative: https://ethereum-sepolia.publicnode.com
+SEPOLIA_RPC_URL=https://rpc.sepolia.org
+
+# Etherscan API key for contract verification
+# Get from: https://etherscan.io/apis
+ETHERSCAN_API_KEY=your_etherscan_api_key
+
+# Mainnet RPC URL (for future mainnet deployment)
+# Free public endpoint:
+MAINNET_RPC_URL=https://eth.llamarpc.com
+
+# Gas reporting (optional)
+REPORT_GAS=true
+
+# Contract configuration
+CONTRACT_NAME=ParrOdessa42
+CONTRACT_SYMBOL=POD42
+BASE_URI=https://ipfs.io/ipfs/

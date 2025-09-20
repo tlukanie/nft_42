@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParrOdessa42 NFT Minter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .btn {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: transform 0.2s;
+        }
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.loading {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .wallet-info {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+        }
+        .info {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .info h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .info code {
+            background-color: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 ParrOdessa42 NFT Minter</h1>
+        <p style="text-align: center; color: #666;">Connect MetaMask and mint your NFT directly</p>
+        
+        <div id="walletInfo" class="wallet-info" style="display: none;">
+            <strong>Connected:</strong> <span id="walletAddress"></span><br>
+            <strong>Network:</strong> <span id="networkName"></span>
+        </div>
+        
+        <div id="tokenInfo" class="wallet-info" style="display: none;">
+            <strong>Total Supply:</strong> <span id="totalSupply">-</span><br>
+            <strong>Available to Mint:</strong> <span id="availableTokens">-</span><br>
+            <strong>Max Supply:</strong> <span id="maxSupply">42</span>
+        </div>
+        
+        <div id="metadataInfo" class="wallet-info" style="display: none;">
+            <h4>📋 NFT Metadata</h4>
+            <strong>Artist:</strong> <span id="artistName">-</span><br>
+            <strong>Collection:</strong> <span id="collectionName">-</span><br>
+            <strong>Description:</strong> <span id="description">-</span><br>
+            <strong>Image:</strong> <a id="imageLink" href="#" target="_blank">View Image</a>
+        </div>
+        
+        <div id="ownersInfo" class="wallet-info" style="display: none;">
+            <h4>👥 NFT Owners</h4>
+            <div id="ownersList">Loading owners...</div>
+        </div>
+        
+        <button id="connectBtn" class="btn" onclick="connectWallet()">
+            🔗 Connect MetaMask
+        </button>
+        
+        <button id="switchNetworkBtn" class="btn" onclick="switchToSepolia()" style="display: none; background: linear-gradient(45deg, #ff6b6b 0%, #ee5a24 100%);">
+            🔄 Switch to Sepolia Network
+        </button>
+        
+        <button id="mintBtn" class="btn" onclick="mintNFT()" disabled>
+            🚀 Mint NFT
+        </button>
+        
+        <button id="refreshBtn" class="btn" onclick="refreshAllInfo()" style="display: none; background: linear-gradient(45deg, #4ecdc4 0%, #44a08d 100%);">
+            🔄 Refresh All Info
+        </button>
+        
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <div class="info">
+            <h3>Contract Details:</h3>
+            <p><strong>Address:</strong> <code>0x3eFe95995C9a05D750A8e60371c5e426EA28637A</code></p>
+            <p><strong>Network:</strong> Ethereum Sepolia</p>
+            <p><strong>Metadata URI:</strong> <code>bafkreieg4lxxqed34oda2kixk4estsx5cspeuhezjr64kswxt6p3xnoqyy</code></p>
+        </div>
+    </div>
+
+    <script>
+        // Contract details
+        const CONTRACT_ADDRESS = "0x3eFe95995C9a05D750A8e60371c5e426EA28637A";
+        const METADATA_URI = "bafkreieg4lxxqed34oda2kixk4estsx5cspeuhezjr64kswxt6p3xnoqyy";
+        const MAX_SUPPLY = 42; // Maximum number of NFTs that can be minted
+        
+        // Contract ABI - only the functions we need
+        const CONTRACT_ABI = [
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "to", "type": "address"},
+                    {"internalType": "string", "name": "uri", "type": "string"}
+                ],
+                "name": "mintNFT",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "totalSupply",
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "uint256", "name": "tokenId", "type": "uint256"}],
+                "name": "ownerOf",
+                "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "name",
+                "outputs": [{"internalType": "string", "name": "", "type": "string"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "symbol",
+                "outputs": [{"internalType": "string", "name": "", "type": "string"}],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        let provider, signer, contract;
+        let isConnected = false;
+
+        // Check if MetaMask is installed
+        function checkMetaMask() {
+            if (typeof window.ethereum === 'undefined') {
+                showStatus("❌ MetaMask not found. Please install MetaMask extension.", "error");
+                return false;
+            }
+            return true;
+        }
+
+        // Connect to MetaMask
+        async function connectWallet() {
+            try {
+                if (!checkMetaMask()) return;
+
+                // Check if ethers is loaded
+                if (typeof ethers === 'undefined') {
+                    showStatus("⏳ Loading ethers.js...", "loading");
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+                    if (typeof ethers === 'undefined') {
+                        showStatus("❌ Failed to load ethers.js. Please refresh the page.", "error");
+                        return;
+                    }
+                }
+
+                showStatus("⏳ Connecting to MetaMask...", "loading");
+
+                // Request account access
+                const accounts = await window.ethereum.request({ 
+                    method: 'eth_requestAccounts' 
+                });
+
+                console.log('Connected accounts:', accounts);
+
+                if (accounts.length === 0) {
+                    showStatus("❌ No accounts found. Please unlock MetaMask.", "error");
+                    return;
+                }
+
+                // Check network
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                const sepoliaChainId = '0xaa36a7'; // Sepolia chain ID (11155111 in decimal)
+
+                console.log('Current chain ID:', chainId);
+                console.log('Expected Sepolia chain ID:', sepoliaChainId);
+
+                if (chainId !== sepoliaChainId) {
+                    showStatus(`❌ Wrong network. Current: ${chainId}, Expected: ${sepoliaChainId}. Click the button below to switch to Sepolia.`, "error");
+                    document.getElementById('switchNetworkBtn').style.display = 'block';
+                    return;
+                }
+
+                // Set up provider and signer
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+                // Update UI
+                const address = accounts[0];
+                document.getElementById('walletAddress').textContent = 
+                    `${address.substring(0, 6)}...${address.substring(38)}`;
+                document.getElementById('networkName').textContent = 'Sepolia';
+                document.getElementById('walletInfo').style.display = 'block';
+                
+                document.getElementById('connectBtn').textContent = '✅ Connected';
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('mintBtn').disabled = false;
+
+                isConnected = true;
+                showStatus("✅ Wallet connected successfully!", "success");
+                
+                // Update token information
+                await updateTokenInfo();
+                
+                // Load metadata and owners
+                await loadMetadata();
+                await loadOwners();
+
+            } catch (error) {
+                console.error('Connection error:', error);
+                showStatus(`❌ Connection failed: ${error.message}`, "error");
+            }
+        }
+
+        // Update token information
+        async function updateTokenInfo() {
+            try {
+                if (!contract) return;
+                
+                showStatus("⏳ Loading token information...", "loading");
+                
+                // Get total supply
+                const totalSupply = await contract.totalSupply();
+                const availableTokens = MAX_SUPPLY - totalSupply;
+                
+                // Update UI
+                document.getElementById('totalSupply').textContent = totalSupply.toString();
+                document.getElementById('availableTokens').textContent = availableTokens.toString();
+                document.getElementById('maxSupply').textContent = MAX_SUPPLY.toString();
+                document.getElementById('tokenInfo').style.display = 'block';
+                document.getElementById('refreshBtn').style.display = 'block';
+                
+                // Update mint button state
+                if (availableTokens <= 0) {
+                    document.getElementById('mintBtn').disabled = true;
+                    document.getElementById('mintBtn').textContent = '🚫 All NFTs Minted';
+                    showStatus("ℹ️ All NFTs have been minted!", "success");
+                } else {
+                    document.getElementById('mintBtn').disabled = false;
+                    document.getElementById('mintBtn').textContent = `🚀 Mint NFT (${availableTokens} left)`;
+                    showStatus(`✅ Token info loaded! ${availableTokens} NFTs available to mint.`, "success");
+                }
+                
+            } catch (error) {
+                console.error('Error loading token info:', error);
+                showStatus(`❌ Failed to load token information: ${error.message}`, "error");
+            }
+        }
+
+        // Load NFT metadata
+        async function loadMetadata() {
+            try {
+                if (!contract) return;
+                
+                // Get contract name and symbol
+                const contractName = await contract.name();
+                const contractSymbol = await contract.symbol();
+                
+                // Load metadata from IPFS
+                const metadataResponse = await fetch(`https://ipfs.io/ipfs/${METADATA_URI}`);
+                const metadata = await metadataResponse.json();
+                
+                // Update UI
+                document.getElementById('artistName').textContent = metadata.artist || 'tlukanie';
+                document.getElementById('collectionName').textContent = contractName || 'ParrOdessa42';
+                document.getElementById('description').textContent = metadata.description || 'A unique NFT collection featuring the number 42';
+                
+                // Fix image link - remove any existing IPFS prefix from metadata.image
+                let imageHash = metadata.image;
+                if (imageHash.startsWith('ipfs://')) {
+                    imageHash = imageHash.replace('ipfs://', '');
+                }
+                if (imageHash.startsWith('https://ipfs.io/ipfs/')) {
+                    imageHash = imageHash.replace('https://ipfs.io/ipfs/', '');
+                }
+                
+                document.getElementById('imageLink').href = `https://ipfs.io/ipfs/${imageHash}`;
+                document.getElementById('imageLink').textContent = 'View Image on IPFS';
+                
+                document.getElementById('metadataInfo').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading metadata:', error);
+                // Fallback values
+                document.getElementById('artistName').textContent = 'tlukanie';
+                document.getElementById('collectionName').textContent = 'ParrOdessa42';
+                document.getElementById('description').textContent = 'A unique NFT collection featuring the number 42';
+                document.getElementById('imageLink').href = '#';
+                document.getElementById('imageLink').textContent = 'Metadata not available';
+                document.getElementById('metadataInfo').style.display = 'block';
+            }
+        }
+
+        // Load NFT owners
+        async function loadOwners() {
+            try {
+                if (!contract) return;
+                
+                const totalSupply = await contract.totalSupply();
+                const ownersList = document.getElementById('ownersList');
+                
+                if (totalSupply == 0) {
+                    ownersList.innerHTML = '<em>No NFTs minted yet</em>';
+                    document.getElementById('ownersInfo').style.display = 'block';
+                    return;
+                }
+                
+                ownersList.innerHTML = '<em>Loading owners...</em>';
+                document.getElementById('ownersInfo').style.display = 'block';
+                
+                const owners = new Map(); // address -> count
+                
+                // Get owners for each token
+                for (let i = 0; i < totalSupply; i++) {
+                    try {
+                        const owner = await contract.ownerOf(i);
+                        const count = owners.get(owner) || 0;
+                        owners.set(owner, count + 1);
+                    } catch (error) {
+                        console.error(`Error getting owner for token ${i}:`, error);
+                    }
+                }
+                
+                // Display owners
+                if (owners.size === 0) {
+                    ownersList.innerHTML = '<em>No owners found</em>';
+                    return;
+                }
+                
+                let ownersHTML = '';
+                for (const [address, count] of owners) {
+                    const shortAddress = `${address.substring(0, 6)}...${address.substring(38)}`;
+                    const etherscanLink = `https://sepolia.etherscan.io/address/${address}`;
+                    ownersHTML += `
+                        <div style="margin: 5px 0; padding: 5px; background: #f8f9fa; border-radius: 3px;">
+                            <strong>${count} NFT${count > 1 ? 's' : ''}</strong> - 
+                            <a href="${etherscanLink}" target="_blank" style="color: #007bff;">${shortAddress}</a>
+                        </div>
+                    `;
+                }
+                
+                ownersList.innerHTML = ownersHTML;
+                
+            } catch (error) {
+                console.error('Error loading owners:', error);
+                document.getElementById('ownersList').innerHTML = '<em>Error loading owners</em>';
+                document.getElementById('ownersInfo').style.display = 'block';
+            }
+        }
+
+        // Mint NFT
+        async function mintNFT() {
+            try {
+                if (!isConnected) {
+                    showStatus("❌ Please connect wallet first", "error");
+                    return;
+                }
+
+                showStatus("⏳ Minting NFT...", "loading");
+
+                // Get current account
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                const toAddress = accounts[0];
+
+                // Call mintNFT function
+                const tx = await contract.mintNFT(toAddress, METADATA_URI);
+                
+                showStatus(`📝 Transaction sent: ${tx.hash}`, "loading");
+
+                // Wait for transaction confirmation
+                const receipt = await tx.wait();
+                
+                showStatus(`✅ NFT minted successfully! Block: ${receipt.blockNumber}`, "success");
+
+                // Get token ID
+                const totalSupply = await contract.totalSupply();
+                const tokenId = totalSupply - 1;
+                
+                showStatus(`🎉 Your NFT Token ID: ${tokenId}`, "success");
+                
+                // Update token information after minting
+                await updateTokenInfo();
+                
+                // Refresh owners list
+                await loadOwners();
+
+            } catch (error) {
+                console.error('Minting error:', error);
+                showStatus(`❌ Minting failed: ${error.message}`, "error");
+            }
+        }
+
+        // Refresh all information
+        async function refreshAllInfo() {
+            try {
+                showStatus("⏳ Refreshing all information...", "loading");
+                await updateTokenInfo();
+                await loadOwners();
+                showStatus("✅ All information refreshed!", "success");
+            } catch (error) {
+                console.error('Error refreshing info:', error);
+                showStatus(`❌ Failed to refresh: ${error.message}`, "error");
+            }
+        }
+
+        // Switch to Sepolia network
+        async function switchToSepolia() {
+            try {
+                showStatus("⏳ Switching to Sepolia network...", "loading");
+                
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0xaa36a7' }], // Sepolia chain ID
+                });
+                
+                showStatus("✅ Switched to Sepolia! Now try connecting again.", "success");
+                document.getElementById('switchNetworkBtn').style.display = 'none';
+                
+            } catch (switchError) {
+                // This error code indicates that the chain has not been added to MetaMask
+                if (switchError.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [
+                                {
+                                    chainId: '0xaa36a7',
+                                    chainName: 'Sepolia',
+                                    rpcUrls: ['https://sepolia.drpc.org'],
+                                    nativeCurrency: {
+                                        name: 'ETH',
+                                        symbol: 'ETH',
+                                        decimals: 18,
+                                    },
+                                    blockExplorerUrls: ['https://sepolia.etherscan.io'],
+                                },
+                            ],
+                        });
+                        showStatus("✅ Sepolia network added! Now try connecting again.", "success");
+                        document.getElementById('switchNetworkBtn').style.display = 'none';
+                    } catch (addError) {
+                        showStatus(`❌ Failed to add Sepolia network: ${addError.message}`, "error");
+                    }
+                } else {
+                    showStatus(`❌ Failed to switch network: ${switchError.message}`, "error");
+                }
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+        }
+
+        // Listen for account changes
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', (accounts) => {
+                if (accounts.length === 0) {
+                    // User disconnected
+                    isConnected = false;
+                    document.getElementById('walletInfo').style.display = 'none';
+                    document.getElementById('connectBtn').textContent = '🔗 Connect MetaMask';
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('mintBtn').disabled = true;
+                    showStatus("👋 Wallet disconnected", "error");
+                }
+            });
+
+            window.ethereum.on('chainChanged', (chainId) => {
+                // Reload page when network changes
+                window.location.reload();
+            });
+        }
+
+        // Load ethers.js dynamically
+        async function loadEthers() {
+            return new Promise((resolve, reject) => {
+                // Check if already loaded
+                if (typeof ethers !== 'undefined') {
+                    console.log('Ethers.js already loaded');
+                    resolve();
+                    return;
+                }
+
+                // Try to load from CDN
+                const script = document.createElement('script');
+                script.src = 'https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js';
+                script.onload = () => {
+                    console.log('Ethers.js loaded successfully');
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error('Failed to load ethers.js from CDN');
+                    // Try fallback CDN
+                    const fallbackScript = document.createElement('script');
+                    fallbackScript.src = 'https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js';
+                    fallbackScript.onload = () => {
+                        console.log('Ethers.js loaded from fallback CDN');
+                        resolve();
+                    };
+                    fallbackScript.onerror = () => {
+                        console.error('Failed to load ethers.js from both CDNs');
+                        reject(new Error('Failed to load ethers.js'));
+                    };
+                    document.head.appendChild(fallbackScript);
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        // Load ethers.js when page loads
+        window.addEventListener('load', async () => {
+            try {
+                await loadEthers();
+                console.log('Ethers.js ready');
+            } catch (error) {
+                console.error('Failed to load ethers.js:', error);
+                showStatus("❌ Failed to load ethers.js. Please refresh the page.", "error");
+            }
+        });
+    </script>
+</body>
+</html>
