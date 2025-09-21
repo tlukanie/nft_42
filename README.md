@@ -1,6 +1,6 @@
 # ParrOdessa42 NFT Project
 
-## 🎨 Project Overview
+## Project Overview
 
 **ParrOdessa42** is a complete ERC-721 NFT collection featuring the number 42, created by artist **tlukanie**. This project demonstrates a full NFT development workflow from smart contract creation to web interface deployment.
 
