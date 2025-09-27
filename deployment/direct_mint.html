@@ -103,7 +103,8 @@
         <div id="tokenInfo" class="wallet-info" style="display: none;">
             <strong>Total Supply:</strong> <span id="totalSupply">-</span><br>
             <strong>Available to Mint:</strong> <span id="availableTokens">-</span><br>
-            <strong>Max Supply:</strong> <span id="maxSupply">42</span>
+            <strong>Max Supply:</strong> <span id="maxSupply">42</span><br>
+            <strong>Mint Price:</strong> <span id="mintPriceDisplay">-</span> ETH
         </div>
         
         <div id="metadataInfo" class="wallet-info" style="display: none;">
@@ -131,6 +132,10 @@
             🚀 Mint NFT
         </button>
         
+        <div id="paymentWarning" class="wallet-info" style="display: none; background-color: #fff3cd; border-left-color: #ffc107;">
+            <strong>⚠️ Payment Required:</strong> Minting costs ETH. Make sure you have enough Sepolia ETH in your wallet.
+        </div>
+        
         <button id="refreshBtn" class="btn" onclick="refreshAllInfo()" style="display: none; background: linear-gradient(45deg, #4ecdc4 0%, #44a08d 100%);">
             🔄 Refresh All Info
         </button>
@@ -142,6 +147,7 @@
             <p><strong>Address:</strong> <code>0x3eFe95995C9a05D750A8e60371c5e426EA28637A</code></p>
             <p><strong>Network:</strong> Ethereum Sepolia</p>
             <p><strong>Metadata URI:</strong> <code>bafkreieg4lxxqed34oda2kixk4estsx5cspeuhezjr64kswxt6p3xnoqyy</code></p>
+            <p><strong>Mint Price:</strong> <span id="contractMintPrice">Loading...</span> ETH</p>
         </div>
     </div>
 
@@ -164,8 +170,24 @@
                 "type": "function"
             },
             {
+                "inputs": [
+                    {"internalType": "string", "name": "uri", "type": "string"}
+                ],
+                "name": "publicMint",
+                "outputs": [],
+                "stateMutability": "payable",
+                "type": "function"
+            },
+            {
                 "inputs": [],
                 "name": "totalSupply",
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "mintPrice",
                 "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
                 "stateMutability": "view",
                 "type": "function"
@@ -286,14 +308,20 @@
                 
                 showStatus("⏳ Loading token information...", "loading");
                 
-                // Get total supply
+                // Get total supply and mint price
                 const totalSupply = await contract.totalSupply();
+                const mintPrice = await contract.mintPrice();
                 const availableTokens = MAX_SUPPLY - totalSupply;
+                
+                // Convert wei to ETH
+                const mintPriceETH = ethers.utils.formatEther(mintPrice);
                 
                 // Update UI
                 document.getElementById('totalSupply').textContent = totalSupply.toString();
                 document.getElementById('availableTokens').textContent = availableTokens.toString();
                 document.getElementById('maxSupply').textContent = MAX_SUPPLY.toString();
+                document.getElementById('mintPriceDisplay').textContent = mintPriceETH;
+                document.getElementById('contractMintPrice').textContent = mintPriceETH;
                 document.getElementById('tokenInfo').style.display = 'block';
                 document.getElementById('refreshBtn').style.display = 'block';
                 
@@ -301,11 +329,13 @@
                 if (availableTokens <= 0) {
                     document.getElementById('mintBtn').disabled = true;
                     document.getElementById('mintBtn').textContent = '🚫 All NFTs Minted';
+                    document.getElementById('paymentWarning').style.display = 'none';
                     showStatus("ℹ️ All NFTs have been minted!", "success");
                 } else {
                     document.getElementById('mintBtn').disabled = false;
-                    document.getElementById('mintBtn').textContent = `🚀 Mint NFT (${availableTokens} left)`;
-                    showStatus(`✅ Token info loaded! ${availableTokens} NFTs available to mint.`, "success");
+                    document.getElementById('mintBtn').textContent = `🚀 Mint NFT (${mintPriceETH} ETH)`;
+                    document.getElementById('paymentWarning').style.display = 'block';
+                    showStatus(`✅ Token info loaded! ${availableTokens} NFTs available to mint for ${mintPriceETH} ETH each.`, "success");
                 }
                 
             } catch (error) {
@@ -415,7 +445,7 @@
             }
         }
 
-        // Mint NFT
+        // Mint NFT using public minting (paid)
         async function mintNFT() {
             try {
                 if (!isConnected) {
@@ -425,12 +455,14 @@
 
                 showStatus("⏳ Minting NFT...", "loading");
 
-                // Get current account
-                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                const toAddress = accounts[0];
+                // Get mint price from contract
+                const mintPrice = await contract.mintPrice();
+                const mintPriceETH = ethers.utils.formatEther(mintPrice);
 
-                // Call mintNFT function
-                const tx = await contract.mintNFT(toAddress, METADATA_URI);
+                // Call publicMint function with payment
+                const tx = await contract.publicMint(METADATA_URI, {
+                    value: mintPrice // Send ETH payment
+                });
                 
                 showStatus(`📝 Transaction sent: ${tx.hash}`, "loading");
 
@@ -443,7 +475,7 @@
                 const totalSupply = await contract.totalSupply();
                 const tokenId = totalSupply - 1;
                 
-                showStatus(`🎉 Your NFT Token ID: ${tokenId}`, "success");
+                showStatus(`🎉 Your NFT Token ID: ${tokenId} (Cost: ${mintPriceETH} ETH)`, "success");
                 
                 // Update token information after minting
                 await updateTokenInfo();
@@ -453,7 +485,17 @@
 
             } catch (error) {
                 console.error('Minting error:', error);
-                showStatus(`❌ Minting failed: ${error.message}`, "error");
+                
+                // Provide specific error messages
+                if (error.message.includes("insufficient funds")) {
+                    showStatus(`❌ Insufficient funds. You need ${mintPriceETH} ETH to mint.`, "error");
+                } else if (error.message.includes("Maximum supply reached")) {
+                    showStatus("❌ All NFTs have been minted!", "error");
+                } else if (error.message.includes("Minting is currently disabled")) {
+                    showStatus("❌ Minting has been disabled by the contract owner", "error");
+                } else {
+                    showStatus(`❌ Minting failed: ${error.message}`, "error");
+                }
             }
         }
 
